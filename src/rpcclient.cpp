@@ -82,6 +82,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "lockunspent", 0 },
     { "lockunspent", 1 },
     { "importprivkey", 2 },
+    { "rescan", 0 },
     { "importaddress", 2 },
     { "verifychain", 0 },
     { "verifychain", 1 },

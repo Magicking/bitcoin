@@ -140,6 +140,62 @@ Value importprivkey(const Array& params, bool fHelp)
     return Value::null;
 }
 
+Value rescan(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "rescan ( number \"unit\" )\n"
+            "\nRescan the database for missing transactions in wallet.\n"
+            "\nArguments:\n"
+            "1. \"number\"          (integer, optional=0) positive or negative number\n"
+            "2. \"unit\"           (integer, optional, default=\"blocks\")\n"
+            "\nNote: This call can take minutes to complete.\n"
+            "\nExamples:\n"
+            "\nRescan since the beginning\n"
+            + HelpExampleCli("rescan", "") +
+            "\nRescan since 16 blocks from the tip\n"
+            + HelpExampleCli("rescan", "-17 \"blocks\"") +
+            "\nRescan since height 22 to the tip\n"
+            + HelpExampleCli("rescan", "22 \"blocks\"") +
+            "\nAs a JSON-RPC call\n"
+            + HelpExampleRpc("rescan", "22, \"blocks\"")
+        );
+
+    int nBlocks = 0;
+
+    if (params.size() > 0)
+        nBlocks = params[0].get_int();
+    if (params.size() > 1 && params[1].get_str() != "blocks")
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Only blocks unit is possible");
+
+    LOCK(cs_main);
+
+    CBlockIndex* pindexStart;
+    int tipHeight = chainActive.Height();
+    int nHeight = nBlocks < 0 ? (tipHeight + nBlocks + 1) : nBlocks ;
+
+    if (nHeight > tipHeight)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Scanning is not possible past the tip of the blockchain.");
+    else if (nHeight < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Scanning is not possible beyond the genesis of the blockchain.");
+
+    if (!nHeight)
+        pindexStart = chainActive.Genesis();
+    else
+        pindexStart = chainActive.Tip()->GetAncestor(nHeight);
+
+    pwalletMain->MarkDirty();
+
+    pwalletMain->ScanForWalletTransactions(pindexStart, true);
+    pwalletMain->ReacceptWalletTransactions();
+
+    Object obj;
+    obj.push_back(Pair("start", nHeight));
+    obj.push_back(Pair("height", tipHeight));
+
+    return obj;
+}
+
 Value importaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 3)
